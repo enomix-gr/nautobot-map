@@ -15,6 +15,8 @@ import json
 
 
 def featureByLocation(loc):
+    if loc.latitude is None or loc.longitude is None:
+        return None
     return {
         "type": "Feature",
         "geometry": {
@@ -49,7 +51,8 @@ class MapView(LoginRequiredMixin, View):
         features = []
         for l in locations:
             feature = featureByLocation(l)
-            features.append(feature)
+            if feature is not None:
+                features.append(feature)
 
         context = {
             "count": locations.count(),
