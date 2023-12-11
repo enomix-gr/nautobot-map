@@ -1,15 +1,16 @@
 /** global ol */
 
 const map_div = document.getElementById('map')
-const geoJson = map_div.dataset.geojson
+const features = JSON.parse(map_div.dataset.geojson)
+// console.log(groups)
 
-const location_layer = new ol.layer.Vector({
-    title: 'Locations',
-    source: new ol.source.Vector({
-        url: 'data:,' + encodeURIComponent(geoJson),
-        format: new ol.format.GeoJSON()
-    }),
-})
+// const location_layer = new ol.layer.Vector({
+//     title: 'Locations',
+//     source: new ol.source.Vector({
+//         url: 'data:,' + encodeURIComponent(geoJson),
+//         format: new ol.format.GeoJSON()
+//     }),
+// })
 
 const map = new ol.Map({
     target: map_div,
@@ -17,7 +18,7 @@ const map = new ol.Map({
         new ol.layer.Tile({
             source: new ol.source.OSM(),
         }),
-        location_layer
+        // location_layer
     ],
     view: new ol.View({
         center: [0, 0],
@@ -25,12 +26,45 @@ const map = new ol.Map({
     }),
 });
 
-var once = false
-map.addEventListener('loadend', function (evt) {
-    if (once) {return}
-    map.getView().fit(location_layer.getSource().getExtent())    
-    once = true
-})
+ol.proj.useGeographic()
+
+const layers = {}
+const coords = []
+for (f of features) {
+    console.log(f)
+    if (!layers[f.location_type__name]) {
+        let l = new ol.layer.Vector({
+            title: f.location_type__name,
+            source: new ol.source.Vector({})
+        })
+        map.addLayer(l)
+        layers[f.location_type__name] = l
+    }
+    let coord = [1*f.longitude, 1*f.latitude]
+    coords.push(coord)
+    var point = new ol.geom.Point(coord)
+    var feature = new ol.Feature({
+        name: f.name,
+        geometry: point,
+        type: f.location_type__name,
+        status: f.status__name,
+        description: f.description,
+        facility: f.fa,
+        tenant: f.tenant__name,
+        facility: f.facility,
+        asn: f.asn,
+        physical_address: f.physical_address,
+        contact_name: f.contact_name,
+        contact_email: f.contact_email,
+        comments: f.comments,
+        ...f._custom_field_data        
+    })
+    const source = layers[f.location_type__name].getSource() 
+    source.addFeature(feature)
+}
+
+map.getView().fit(ol.extent.buffer(ol.extent.boundingExtent(coords), 0.5))    
+
 /**
  * Popup
  **/
@@ -82,4 +116,8 @@ map.on('pointermove', function (e) {
     map.getTargetElement().style.cursor = hit ? 'pointer' : '';
 });
 
-
+var layerSwitcher = new ol.control.LayerSwitcher({
+    // tipLabel: 'Légende', // Optional label for button
+    // groupSelectStyle: 'none' // Can be 'children' [default], 'group' or 'none'
+  });
+map.addControl(layerSwitcher);
